@@ -1,0 +1,120 @@
+name: Build & Deploy Architecture Starter
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ Setup JDK
+      - name: Set JDK
+        uses: actions/setup-java@v4.7.0
+        with:
+          java-version: 17
+          distribution: 'corretto'
+
+      - name: Set up Git
+        run: git config user.name "github-actions" && git config user.email "actions@github.com"
+
+      - name: Get current version
+        id: get-version
+        run: |
+          if [ ! -f VERSION ]; then
+            echo "1.1.2" > VERSION
+          fi
+          VERSION=$(cat VERSION)
+          echo "Current version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Determine next version
+        id: set-version
+        run: |
+          CURRENT=${{ env.VERSION }}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          
+          # Leer mensaje del último commit
+          LAST_COMMIT=$(git log -1 --pretty=%B)
+          
+          if [[ "$LAST_COMMIT" == *"#major"* ]]; then
+            MAJOR=$((MAJOR+1))
+            MINOR=0
+            PATCH=0
+          elif [[ "$LAST_COMMIT" == *"#minor"* ]]; then
+            MINOR=$((MINOR+1))
+            PATCH=0
+          elif [[ "${GITHUB_REF_NAME}" == "develop" ]]; then
+            PATCH=$((PATCH+1))
+          fi
+          
+          
+          if [[ "${GITHUB_REF_NAME}" == "develop" ]]; then
+            NEXT="$MAJOR.$MINOR.$PATCH-SNAPSHOT"
+          else
+            NEXT="$MAJOR.$MINOR.$PATCH"
+          fi
+          echo "$NEXT" > VERSION
+          echo "Next version: $NEXT"
+          
+          
+          mvn versions:set -DnewVersion=$NEXT -DgenerateBackupPoms=false
+          mvn versions:update-child-modules -DallowSnapshots=true -DgenerateBackupPoms=false
+          mvn install -N -DskipTests
+          mvn clean install -DskipTests
+          
+          git add VERSION pom.xml **/pom.xml
+          git commit -m "ci: bump version to $NEXT [skip ci]" || echo "No changes to commit"
+          git push origin $GITHUB_REF_NAME || echo "Push failed"
+          
+          echo "APP_VERSION=$NEXT" >> $GITHUB_ENV
+          echo "APP_VERSION=$NEXT" >> $GITHUB_OUTPUT
+
+      - name: Create and push Git tag
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "develop" ]]; then
+            TAG="v${{ env.APP_VERSION }}-SNAPSHOT"
+          else
+            TAG="v${{ env.APP_VERSION }}"
+          fi
+          echo "Creating tag $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG" || echo "Tag already exists"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Configure Maven settings
+        run: |
+          mkdir -p $HOME/.m2
+          echo "<settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${{ github.actor }}</username>
+                <password>${{ secrets.NUA_PAC }}</password>
+              </server>
+            </servers>
+          </settings>" > $HOME/.m2/settings.xml
+
+      - name: Build all modules
+        run: mvn clean install -DskipTests -f pom.xml
+
+      - name: Deploy to GitHub Packages
+        run: mvn deploy -DskipTests -f pom.xml
