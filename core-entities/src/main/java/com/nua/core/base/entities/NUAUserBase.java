@@ -1,7 +1,9 @@
 package com.nua.core.base.entities;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.MappedSuperclass;
 
+@MappedSuperclass
 public class NUAUserBase extends NUAAuditBase{
 
     public NUAUserBase() {
