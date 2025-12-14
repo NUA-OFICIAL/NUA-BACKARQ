@@ -8,9 +8,6 @@ import java.util.UUID;
 @MappedSuperclass
 public class NUAAuditBase {
 
-    @Id
-    @Column(length = 36)
-    private String id;
 
     @Column(updatable = false)
     private LocalDateTime createdDate;
@@ -19,9 +16,6 @@ public class NUAAuditBase {
 
     @PrePersist
     public void onCreate() {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
         if (createdDate == null) {
             createdDate = LocalDateTime.now();
         }
@@ -30,15 +24,6 @@ public class NUAAuditBase {
     @PreUpdate
     public void onUpdate() {
         updatedDate = LocalDateTime.now();
-    }
-
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     public LocalDateTime getCreatedDate() {
