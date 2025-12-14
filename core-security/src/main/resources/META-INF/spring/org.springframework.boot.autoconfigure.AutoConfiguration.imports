@@ -1,4 +1,3 @@
 com.nua.core.security.SecurityConfig
-com.nua.core.security.JwtAuthenticationEntryPoint
 com.nua.core.security.JwtAuthFilter
 com.nua.core.exceptions.handlers.GlobalExceptionHandler
