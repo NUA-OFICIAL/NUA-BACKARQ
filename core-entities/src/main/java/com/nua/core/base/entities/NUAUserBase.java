@@ -1,10 +1,11 @@
 package com.nua.core.base.entities;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.nua.core.base.entities.enums.Roles;
 import jakarta.persistence.MappedSuperclass;
 
 @MappedSuperclass
-public class NUAUserBase extends NUAAuditBase{
+public class NUAUserBase extends NUAAuditBase {
 
     public NUAUserBase() {
     }
@@ -24,6 +25,16 @@ public class NUAUserBase extends NUAAuditBase{
     private String email;
 
     private String fullName;
+
+    private Roles rol;
+
+    public Roles getRol() {
+        return rol;
+    }
+
+    public void setRol(Roles rol) {
+        this.rol = rol;
+    }
 
     public String getUsername() {
         return username;
