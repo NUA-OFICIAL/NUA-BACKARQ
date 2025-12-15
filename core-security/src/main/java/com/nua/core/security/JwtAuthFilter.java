@@ -29,48 +29,57 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain chain) throws IOException, ServletException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain) throws IOException, ServletException {
 
-        logger.info(BLUE + "doInternalFilter" + RESET);
-        try {
-            String jwtToken = null;
-            Cookie refreshToken = null;
-
-            if (request.getServletPath().contains("/login")){
-                chain.doFilter(request, response);
-                return;
-            }
-
-            if (request.getCookies() != null) {
-                for (Cookie cookie : request.getCookies()) {
-                    if ("jwt".equals(cookie.getName())) jwtToken = cookie.getValue();
-                    if ("ref".equals(cookie.getName())) refreshToken = cookie;
-                }
-            }
-
-            request.setAttribute("jwtToken", jwtToken);
-            request.setAttribute("refreshToken", refreshToken);
-            logger.info(BLUE + "try doIF" + RESET);
-
-            String user;
-            user = jwtUtil.extractUsername(jwtToken);
-            final UserDetails userDetails = this.userDetailsService.loadUserByUsername(user);
-            final var authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails,
-                    null,
-                    userDetails.getAuthorities()
-            );
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+        if (request.getServletPath().contains("/auth/*")) {
             chain.doFilter(request, response);
+            return;
+        }
+
+        String jwtToken = null;
+        Cookie refreshToken = null;
+
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) jwtToken = cookie.getValue();
+                if ("ref".equals(cookie.getName())) refreshToken = cookie;
+            }
+        }
+
+        request.setAttribute("jwtToken", jwtToken);
+        request.setAttribute("refreshToken", refreshToken);
+
+        if (jwtToken == null || jwtToken.isBlank()) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        try {
+            String username = jwtUtil.extractUsername(jwtToken);
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+
+            authToken.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request)
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            chain.doFilter(request, response);
+
         } catch (Exception e) {
-            logger.info(BLUE + "ups! catch" + RESET);
-            logger.error(String.valueOf(e));
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"No autorizado\"}");
+            response.getWriter().write("{\"error\":\"Token inválido o expirado\"}");
         }
     }
 
