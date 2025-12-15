@@ -9,9 +9,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -36,11 +38,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(@Value("${cors.allowed-origins:*}") String allowedOrigins){
+    public CorsConfigurationSource corsConfigurationSource(@Value("${cors.allowed-origins:*}") String allowedOrigins) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","X-Requested-With","Accept"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -50,17 +52,16 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           List<Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry>> customizers) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(null)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login").permitAll()
-                        .requestMatchers("/auth").permitAll()
-                        .anyRequest().authenticated()
-
-                );
+                .authorizeHttpRequests(auth -> {
+                    customizers.forEach(c -> c.customize(auth));
+                    auth.anyRequest().authenticated();
+                });
         log.info(BLUE + "FILTER CHAIN" + RESET);
         return http.build();
     }
@@ -68,20 +69,20 @@ public class SecurityConfig {
     private void logout(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         String nombreMetodo = Thread.currentThread().getStackTrace()[1].getMethodName().toUpperCase();
-        if (cookies == null){
+        if (cookies == null) {
             log.info("cookies inexistentes");
             throw new TransactionException(TransactionException.INVALID_TOKEN_MESSAGE, "LOGOUT");
         }
 
         String jwtToken = null;
-        for (Cookie cookie : cookies){
-            if ("jwt".equals(cookie.getName())){
+        for (Cookie cookie : cookies) {
+            if ("jwt".equals(cookie.getName())) {
                 jwtToken = cookie.getValue();
                 break;
             }
         }
 
-        if(jwtToken == null){
+        if (jwtToken == null) {
             log.info("token invalido");
             throw new TransactionException(TransactionException.INVALID_TOKEN_MESSAGE, "LOGOUT");
         }

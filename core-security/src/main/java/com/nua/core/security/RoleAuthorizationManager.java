@@ -12,7 +12,10 @@ public abstract class RoleAuthorizationManager implements AuthorizationManager<R
     @Override
     public AuthorizationDecision check(Supplier<Authentication> authentication, RequestAuthorizationContext context) {
         Authentication auth = authentication.get();
-        return new AuthorizationDecision(checkAuthorization(auth, context));
+        return new AuthorizationDecision(
+                auth != null && auth.isAuthenticated()
+                        && checkAuthorization(auth, context)
+        );
     }
 
     protected abstract boolean checkAuthorization(Authentication auth, RequestAuthorizationContext context);
