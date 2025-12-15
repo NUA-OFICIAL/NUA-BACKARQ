@@ -41,7 +41,7 @@ public class MySQLDataSourceConfig {
             EntityManagerFactoryBuilder builder, @Qualifier("mysqlDataSource") DataSource ds) {
         return builder
                 .dataSource(ds)
-                .packages("com.kt")
+                .packages("com.nua")
                 .persistenceUnit("mysql")
                 .properties(Map.of(
                         "hibernate.hbm2ddl.auto", "update",

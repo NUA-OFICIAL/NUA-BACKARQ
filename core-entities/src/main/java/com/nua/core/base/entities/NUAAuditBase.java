@@ -3,11 +3,9 @@ package com.nua.core.base.entities;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @MappedSuperclass
 public class NUAAuditBase {
-
 
     @Column(updatable = false)
     private LocalDateTime createdDate;

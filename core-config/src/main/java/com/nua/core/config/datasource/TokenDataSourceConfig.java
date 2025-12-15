@@ -52,7 +52,7 @@ public class TokenDataSourceConfig {
             log.info("Creando EntityManagerFactory para Token");
             return builder
                     .dataSource(tokenDataSource)
-                    .packages("com.kt.core.security")
+                    .packages("com.nua.core.security")
                     .persistenceUnit("Token")
                     .properties(Map.of(
                             "hibernate.hbm2ddl.auto", "update",
