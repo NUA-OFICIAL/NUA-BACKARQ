@@ -1,13 +1,19 @@
 package com.nua.core.base.entities;
 
 import jakarta.persistence.*;
+import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @MappedSuperclass
 public class NUAAuditBase {
 
+    @Id
+    private String id;
+
     @Column(updatable = false)
+    @CreatedDate
     private LocalDateTime createdDate;
 
     private LocalDateTime updatedDate;
@@ -16,6 +22,9 @@ public class NUAAuditBase {
     public void onCreate() {
         if (createdDate == null) {
             createdDate = LocalDateTime.now();
+        }
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
         }
     }
 
@@ -40,4 +49,11 @@ public class NUAAuditBase {
         this.updatedDate = updatedDate;
     }
 
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
 }
